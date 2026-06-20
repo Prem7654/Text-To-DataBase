@@ -215,6 +215,7 @@
     <div class="tabs">
       <button class="tab-btn active" id="tab-new" data-tab="new">New <span class="count" id="count-new">0</span></button>
       <button class="tab-btn" id="tab-repeat" data-tab="repeat">Repeated <span class="count" id="count-repeat">0</span></button>
+      <button class="tab-btn" id="tab-json" data-tab="json">JSON <span class="count" id="count-json">0</span></button>
       <button class="tab-btn" id="tab-config" data-tab="config">Config <span class="count" id="count-config">0</span></button>
       <button class="tab-btn" id="tab-txt" data-tab="txt">Auto TXT <span class="count" id="count-txt">0</span></button>
     </div>
@@ -224,6 +225,9 @@
     </div>
     <div class="tab-panel" id="panel-repeat">
       <div class="empty-state">Abhi koi repeated URL nahi mila.</div>
+    </div>
+    <div class="tab-panel" id="panel-json">
+      <div class="empty-state">Abhi koi JSON URL collect nahi hua.</div>
     </div>
     <div class="tab-panel" id="panel-config">
       <div class="empty-state">Abhi koi config generate nahi hua.</div>
@@ -295,15 +299,31 @@
       panel.innerHTML = '<div class="empty-state">Yahan kuch nahi hai.</div>';
       return;
     }
+    const baseUrl = (url) => {
+      try { const u = new URL(url); return `${u.protocol}//${u.hostname}`; }
+      catch { return url.replace(/^(https?:\/\/[^\/]+).*$/, '$1'); }
+    };
+
     panel.innerHTML = urls.map(url => {
-      const badge = isRtdbUrl(url)
+      const isDb = isRtdbUrl(url);
+      const badge = isDb
         ? '<span class="badge db">Database URL</span>'
         : '<span class="badge other">Other link</span>';
+
+      const base = baseUrl(url);
+      const json = `${base}/.json`;
+
+      const safeBase = base.replace(/'/g, "\\'");
+      const safeJson = json.replace(/'/g, "\\'");
+
       return `
         <div class="url-item">
-          <span class="url-text">${url}</span>
+          <div class="url-text">
+            ${base}<br><span style=\"color:var(--text-dim)\">${json}</span>
+          </div>
           ${badge}
-          <button class="copy-btn" onclick="navigator.clipboard.writeText('${url.replace(/'/g, "\\'")}').then(() => showToast('URL copied to clipboard ✓'))">Copy</button>
+          <button class=\"copy-btn\" onclick=\"navigator.clipboard.writeText('${safeBase}').then(() => showToast('Base URL copied ✓'))\">Copy .com</button>
+          <button class=\"copy-btn\" onclick=\"navigator.clipboard.writeText('${safeJson}').then(() => showToast('JSON URL copied ✓'))\">Copy .json</button>
         </div>
       `;
     }).join('');
@@ -323,8 +343,18 @@
       try { const u = new URL(url); return `${u.protocol}//${u.hostname}`; }
       catch { return url.replace(/^(https?:\/\/[^\/]+).*$/, '$1'); }
     };
+    const fullUrl = (url) => {
+      try {
+        const u = new URL(url);
+        return `${u.protocol}//${u.hostname}/`;
+      } catch {
+        return baseUrl(url) + '/';
+      }
+    };
+
+    // Single URL (1 time) format
     const configText = dbUrls.map((url, i) =>
-      `{\n    name: "Server ${i + 1}",\n    url: "${baseUrl(url)}"},`
+      `\{ name: "Server ${i + 1}",  url: "${fullUrl(url)}" \},<br>`
     ).join('\n');
 
     const escaped = configText
@@ -353,9 +383,17 @@
       return;
     }
 
+    const baseUrl = (url) => {
+      try { const u = new URL(url); return `${u.protocol}//${u.hostname}`; }
+      catch { return url.replace(/^(https?:\/\/[^\/]+).*$/, '$1'); }
+    };
+    const fullUrl = (url) => {
+      try { const u = new URL(url); return `${u.protocol}//${u.hostname}/`; }
+      catch { return baseUrl(url) + '/'; }
+    };
+
     const txtContent = allRtdb.map((url, i) => {
-      try { const u = new URL(url); return `{\n    name: "Server ${i + 1}",\n    url: "${u.protocol}//${u.hostname}"},`; }
-      catch { return `{\n    name: "Server ${i + 1}",\n    url: "${url}"},`; }
+      return `\{ name: "Server ${i + 1}",  url: "${fullUrl(url)}" \},<br>`;
     }).join('\n');
 
     const escaped = txtContent.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -384,6 +422,38 @@
     });
   }
 
+  function renderJsonTab() {
+    const panel = document.getElementById('panel-json');
+    const all = [...seenUrls];
+    document.getElementById('count-json').textContent = all.length;
+
+    if (all.length === 0) {
+      panel.innerHTML = '<div class="empty-state">Abhi koi JSON URL collect nahi hua.</div>';
+      return;
+    }
+
+    const baseUrl = (url) => {
+      try { const u = new URL(url); return `${u.protocol}//${u.hostname}`; }
+      catch { return url.replace(/^(https?:\/\/[^\/]+).*$/, '$1'); }
+    };
+
+    panel.innerHTML = all.map(url => {
+      const base = baseUrl(url);
+      const json = `${base}/.json`;
+      const safeJson = json.replace(/'/g, "\\'");
+      const badge = isRtdbUrl(url)
+        ? '<span class="badge db">Database URL</span>'
+        : '<span class="badge other">Other link</span>';
+      return `
+        <div class="url-item">
+          <span class="url-text">${json}</span>
+          ${badge}
+          <button class="copy-btn" onclick="navigator.clipboard.writeText('${safeJson}').then(() => showToast('JSON URL copied ✓'))">Copy</button>
+        </div>
+      `;
+    }).join('');
+  }
+
   function processText(text) {
     const cleaned = extractUrls(text); // markdown + plain URL extraction
 
@@ -403,6 +473,7 @@
     renderList('panel-repeat', repeatedUrls);
     renderConfig(newUrls);
     renderAutoTxt();
+    renderJsonTab();
     document.getElementById('count-new').textContent = newUrls.length;
     document.getElementById('count-repeat').textContent = repeatedUrls.length;
   }
@@ -429,10 +500,12 @@
     document.getElementById('fileName').textContent = '';
     renderList('panel-new', []);
     renderList('panel-repeat', []);
+    renderJsonTab();
     renderConfig([]);
     renderAutoTxt();
     document.getElementById('count-new').textContent = '0';
     document.getElementById('count-repeat').textContent = '0';
+    document.getElementById('count-json').textContent = '0';
     document.getElementById('count-txt').textContent = '0';
   });
 
