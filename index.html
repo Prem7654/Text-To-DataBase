@@ -304,7 +304,7 @@
       catch { return url.replace(/^(https?:\/\/[^\/]+).*$/, '$1'); }
     };
 
-    panel.innerHTML = urls.map(url => {
+    const __items = urls.map(url => {
       const isDb = isRtdbUrl(url);
       const badge = isDb
         ? '<span class="badge db">Database URL</span>'
@@ -327,6 +327,17 @@
         </div>
       `;
     }).join('');
+
+    const __copyAllId = 'copyAll-' + panelId;
+    const __allBase = urls.map(baseUrl).join(String.fromCharCode(10));
+    panel.innerHTML = `
+      <div style="display:flex;gap:10px;margin-bottom:12px;align-items:center;flex-wrap:wrap;">
+        <button class="copy-btn copy-all-btn" id="${__copyAllId}">Copy All</button>
+        <span style="font-size:12px;color:var(--text-dim);font-family:'JetBrains Mono',monospace;">Total: ${urls.length} links</span>
+      </div>` + __items;
+    document.getElementById(__copyAllId).addEventListener('click', () => {
+      navigator.clipboard.writeText(__allBase).then(() => showToast('All ' + urls.length + ' links copied ✓'));
+    });
   }
 
   function renderConfig(urls) {
@@ -437,7 +448,7 @@
       catch { return url.replace(/^(https?:\/\/[^\/]+).*$/, '$1'); }
     };
 
-    panel.innerHTML = all.map(url => {
+    const __jsonItems = all.map(url => {
       const base = baseUrl(url);
       const json = `${base}/.json`;
       const safeJson = json.replace(/'/g, "\\'");
@@ -452,6 +463,16 @@
         </div>
       `;
     }).join('');
+
+    const __allJson = all.map((u) => `${baseUrl(u)}/.json`).join(String.fromCharCode(10));
+    panel.innerHTML = `
+      <div style="display:flex;gap:10px;margin-bottom:12px;align-items:center;flex-wrap:wrap;">
+        <button class="copy-btn copy-all-btn" id="copyJsonAllBtn">Copy All</button>
+        <span style="font-size:12px;color:var(--text-dim);font-family:'JetBrains Mono',monospace;">Total: ${all.length} JSON links</span>
+      </div>` + __jsonItems;
+    document.getElementById('copyJsonAllBtn').addEventListener('click', () => {
+      navigator.clipboard.writeText(__allJson).then(() => showToast('All ' + all.length + ' JSON links copied ✓'));
+    });
   }
 
   function processText(text) {
